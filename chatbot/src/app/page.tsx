@@ -1,101 +1,182 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useRef, useEffect } from "react";
+
+type Message = {
+  role: "user" | "assistant";
+  text: string;
+};
+
+type ChatThread = {
+  id: string;
+  name: string;
+  messages: Message[];
+};
+
+export default function ChatPage() {
+  const [chatHistory, setChatHistory] = useState<ChatThread[]>([]);
+  const [activeChat, setActiveChat] = useState<ChatThread | null>(null);
+
+  // Creates a new chat thread and sets it as active.
+  const startNewChat = () => {
+    const newChat: ChatThread = {
+      id: Date.now().toString(),
+      name: "New Chat",
+      messages: [],
+    };
+    setActiveChat(newChat);
+    setChatHistory((prev) => [newChat, ...prev]);
+  };
+
+  // Update the chat thread in both chatHistory and activeChat.
+  const updateChat = (updatedChat: ChatThread) => {
+    setChatHistory((prev) =>
+      prev.map((chat) => (chat.id === updatedChat.id ? updatedChat : chat))
+    );
+    setActiveChat(updatedChat);
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="flex h-screen">
+      {/* Sidebar */}
+      <div className="w-64 border-r border-gray-300 p-4 bg-gray-50">
+        <button
+          className="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600"
+          onClick={startNewChat}
+        >
+          New Chat
+        </button>
+        <div className="mt-6">
+          <h3 className="text-lg font-bold mb-2">Chat History</h3>
+          <ul>
+            {chatHistory.map((chat) => (
+              <li key={chat.id} className="mb-2">
+                <button
+                  className={`w-full text-left px-2 py-1 rounded hover:bg-gray-200 ${
+                    activeChat?.id === chat.id ? "bg-gray-200" : ""
+                  }`}
+                  onClick={() => setActiveChat(chat)}
+                >
+                  {chat.name}
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      </div>
+
+      {/* Chat Interface */}
+      <div className="flex-1 flex flex-col">
+        {activeChat ? (
+          <ChatInterface activeChat={activeChat} updateChat={updateChat} />
+        ) : (
+          <div className="flex items-center justify-center flex-1">
+            <p className="text-gray-500">Select a chat or start a new one.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type ChatInterfaceProps = {
+  activeChat: ChatThread;
+  updateChat: (updatedChat: ChatThread) => void;
+};
+
+function ChatInterface({ activeChat, updateChat }: ChatInterfaceProps) {
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Scroll to the latest message when messages change.
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [activeChat.messages]);
+
+  const sendPrompt = async () => {
+    if (!prompt.trim()) return;
+
+    // Create a mutable copy of the active chat.
+    let updatedChat = { ...activeChat };
+
+    // If this is the first user message, update the chat title using the first 10 characters.
+    if (updatedChat.messages.length === 0) {
+      updatedChat = { ...updatedChat, name: prompt.trim().slice(0, 25) };
+    }
+
+    // Append the user's message.
+    const userMessage: Message = { role: "user", text: prompt };
+    updatedChat = { ...updatedChat, messages: [...updatedChat.messages, userMessage] };
+    updateChat(updatedChat);
+
+    setLoading(true);
+    setPrompt("");
+
+    try {
+      // Simulate an API call; replace with your LLM endpoint as needed.
+      const res = await fetch("/api/ollama", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+
+      // Append the assistant's response.
+      const assistantMessage: Message = { role: "assistant", text: data.response };
+      updatedChat = { ...updatedChat, messages: [...updatedChat.messages, assistantMessage] };
+      updateChat(updatedChat);
+    } catch (error) {
+      const errorMessage: Message = { role: "assistant", text: "Error fetching response" };
+      updatedChat = { ...updatedChat, messages: [...updatedChat.messages, errorMessage] };
+      updateChat(updatedChat);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Chat Messages */}
+      <div className="flex-1 p-4 overflow-y-auto bg-gray-100">
+        {activeChat.messages.map((msg, index) => (
+          <div
+            key={index}
+            className={`flex mb-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`px-4 py-2 rounded-lg max-w-[80%] whitespace-pre-wrap ${
+                msg.role === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-900"
+              }`}
+            >
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Area */}
+      <div className="p-4 border-t border-gray-300 bg-white flex gap-2">
+        <input
+          type="text"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") sendPrompt();
+          }}
+          placeholder="Type a message..."
+          disabled={loading}
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          onClick={sendPrompt}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          {loading ? "Sending..." : "Send"}
+        </button>
+      </div>
     </div>
   );
 }
