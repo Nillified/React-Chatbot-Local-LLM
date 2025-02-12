@@ -25,11 +25,14 @@ export default function ChatPage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<ChatSettings>({
     contextPrompt: "",
-    selectedModel: "gpt-3.5",
+    selectedModel: "LModel",
   });
 
   // Create a new chat thread and set it as active.
   const handleNewChat = () => {
+    // Guard: if there's an active chat with no messages, do nothing.
+    if (activeChat && activeChat.messages.length === 0) return;
+
     const newChat: ChatThread = {
       id: Date.now().toString(),
       name: "New Chat",
@@ -66,7 +69,8 @@ export default function ChatPage() {
           </button>
           <button
             onClick={handleNewChat}
-            className="px-4 py-2 bg-green-500 rounded hover:bg-green-600"
+            disabled={activeChat?.messages.length === 0}
+            className="px-4 py-2 bg-green-500 rounded hover:bg-green-600 disabled:opacity-50"
           >
             New Chat
           </button>
@@ -153,9 +157,9 @@ export default function ChatPage() {
                 }
                 className="w-full border border-gray-300 rounded p-2"
               >
-                <option value="gpt-3.5">GPT-3.5</option>
-                <option value="gpt-4">GPT-4</option>
-                <option value="llama">Llama</option>
+                <option value="LModel">LModel</option>
+                <option value="Llama">Llama</option>
+                <option value="Deepseek">Deepseek</option>
               </select>
             </div>
             <div className="flex justify-end gap-2">
@@ -204,7 +208,7 @@ function ChatInterface({
 
     let updatedChat = { ...activeChat };
 
-    // If it's the first user message, update the chat title using the first 10 characters.
+    // If it's the first user message, update the chat title using the first 25 characters.
     if (updatedChat.messages.length === 0) {
       updatedChat = { ...updatedChat, name: prompt.trim().slice(0, 25) };
     }
