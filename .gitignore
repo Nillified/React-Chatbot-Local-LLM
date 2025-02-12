@@ -1,0 +1,8 @@
+backend/.venv/*
+chatbot/.env
+.env
+backend/.env
+chatbot/.next
+chatbot/.next*
+chatbot/node_modules
+chatbot/node_modules*
