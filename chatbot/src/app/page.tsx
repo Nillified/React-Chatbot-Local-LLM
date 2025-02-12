@@ -16,9 +16,10 @@ type ChatThread = {
 export default function ChatPage() {
   const [chatHistory, setChatHistory] = useState<ChatThread[]>([]);
   const [activeChat, setActiveChat] = useState<ChatThread | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  // Creates a new chat thread and sets it as active.
-  const startNewChat = () => {
+  // Create a new chat thread and set it as active.
+  const handleNewChat = () => {
     const newChat: ChatThread = {
       id: Date.now().toString(),
       name: "New Chat",
@@ -28,7 +29,7 @@ export default function ChatPage() {
     setChatHistory((prev) => [newChat, ...prev]);
   };
 
-  // Update the chat thread in both chatHistory and activeChat.
+  // Update a chat thread in both chatHistory and activeChat.
   const updateChat = (updatedChat: ChatThread) => {
     setChatHistory((prev) =>
       prev.map((chat) => (chat.id === updatedChat.id ? updatedChat : chat))
@@ -37,43 +38,55 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen">
-      {/* Sidebar */}
-      <div className="w-64 border-r border-gray-300 p-4 bg-gray-50">
+    <div className="flex flex-col h-screen">
+      {/* Header with two buttons */}
+      <header className="flex items-center justify-between bg-gray-800 text-white p-4">
         <button
-          className="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600"
-          onClick={startNewChat}
+          onClick={() => setIsHistoryOpen((prev) => !prev)}
+          className="px-4 py-2 bg-blue-500 rounded hover:bg-blue-600"
+        >
+          Chat History
+        </button>
+        <button
+          onClick={handleNewChat}
+          className="px-4 py-2 bg-green-500 rounded hover:bg-green-600"
         >
           New Chat
         </button>
-        <div className="mt-6">
-          <h3 className="text-lg font-bold mb-2">Chat History</h3>
-          <ul>
-            {chatHistory.map((chat) => (
-              <li key={chat.id} className="mb-2">
-                <button
-                  className={`w-full text-left px-2 py-1 rounded hover:bg-gray-200 ${
-                    activeChat?.id === chat.id ? "bg-gray-200" : ""
-                  }`}
-                  onClick={() => setActiveChat(chat)}
-                >
-                  {chat.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      </header>
 
-      {/* Chat Interface */}
-      <div className="flex-1 flex flex-col">
-        {activeChat ? (
-          <ChatInterface activeChat={activeChat} updateChat={updateChat} />
-        ) : (
-          <div className="flex items-center justify-center flex-1">
-            <p className="text-gray-500">Select a chat or start a new one.</p>
-          </div>
+      <div className="flex flex-1">
+        {/* Expandable Chat History Panel */}
+        {isHistoryOpen && (
+          <aside className="w-64 bg-gray-100 border-r border-gray-300 p-4 overflow-y-auto">
+            <h3 className="text-lg font-bold mb-2">Chat History</h3>
+            <ul>
+              {chatHistory.map((chat) => (
+                <li key={chat.id} className="mb-2">
+                  <button
+                    onClick={() => setActiveChat(chat)}
+                    className={`w-full text-left px-2 py-1 rounded hover:bg-gray-200 ${
+                      activeChat?.id === chat.id ? "bg-gray-200" : ""
+                    }`}
+                  >
+                    {chat.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </aside>
         )}
+
+        {/* Main Chat Interface */}
+        <main className="flex-1 bg-white">
+          {activeChat ? (
+            <ChatInterface activeChat={activeChat} updateChat={updateChat} />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500">Start a new chat to begin.</p>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );
@@ -89,7 +102,7 @@ function ChatInterface({ activeChat, updateChat }: ChatInterfaceProps) {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Scroll to the latest message when messages change.
+  // Auto-scroll to the bottom whenever messages update.
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeChat.messages]);
@@ -97,15 +110,14 @@ function ChatInterface({ activeChat, updateChat }: ChatInterfaceProps) {
   const sendPrompt = async () => {
     if (!prompt.trim()) return;
 
-    // Create a mutable copy of the active chat.
     let updatedChat = { ...activeChat };
 
-    // If this is the first user message, update the chat title using the first 10 characters.
+    // If it's the first user message, update the chat title using the first 10 characters.
     if (updatedChat.messages.length === 0) {
-      updatedChat = { ...updatedChat, name: prompt.trim().slice(0, 25) };
+      updatedChat = { ...updatedChat, name: prompt.trim().slice(0, 10) };
     }
 
-    // Append the user's message.
+    // Append user's message.
     const userMessage: Message = { role: "user", text: prompt };
     updatedChat = { ...updatedChat, messages: [...updatedChat.messages, userMessage] };
     updateChat(updatedChat);
@@ -114,7 +126,7 @@ function ChatInterface({ activeChat, updateChat }: ChatInterfaceProps) {
     setPrompt("");
 
     try {
-      // Simulate an API call; replace with your LLM endpoint as needed.
+      // Simulate an API call; replace with your LLM integration.
       const res = await fetch("/api/ollama", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,7 +134,7 @@ function ChatInterface({ activeChat, updateChat }: ChatInterfaceProps) {
       });
       const data = await res.json();
 
-      // Append the assistant's response.
+      // Append assistant's response.
       const assistantMessage: Message = { role: "assistant", text: data.response };
       updatedChat = { ...updatedChat, messages: [...updatedChat.messages, assistantMessage] };
       updateChat(updatedChat);
@@ -138,7 +150,7 @@ function ChatInterface({ activeChat, updateChat }: ChatInterfaceProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Chat Messages */}
-      <div className="flex-1 p-4 overflow-y-auto bg-gray-100">
+      <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
         {activeChat.messages.map((msg, index) => (
           <div
             key={index}
@@ -162,9 +174,7 @@ function ChatInterface({ activeChat, updateChat }: ChatInterfaceProps) {
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") sendPrompt();
-          }}
+          onKeyDown={(e) => e.key === "Enter" && sendPrompt()}
           placeholder="Type a message..."
           disabled={loading}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
