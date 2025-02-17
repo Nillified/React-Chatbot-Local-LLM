@@ -6,3 +6,5 @@ chatbot/.next
 chatbot/.next*
 chatbot/node_modules
 chatbot/node_modules*
+llm/.venv
+llm/.venv*

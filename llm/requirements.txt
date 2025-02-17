@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+transformers
+torch
+# Add any dependencies for your Ollama/Qwen model, e.g.,
+# ollama, transformers, etc.

@@ -1,4 +1,3 @@
-// pages/api/ollama.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import axios from "axios";
 
@@ -6,50 +5,77 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  console.log("[API] Received request at /api/ollama with method:", req.method);
+
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
+    console.log("[API] Method not allowed. Returning 405.");
     return res.status(405).json({ message: `Method ${req.method} Not Allowed` });
   }
 
-  // Destructure additional fields if needed.
-  const { prompt, contextPrompt, model } = req.body;
+  // Destructure the prompt and model from the request body.
+  const { prompt, model } = req.body;
+  console.log("[API] Request body:", req.body);
 
-  // If USE_REAL_LLAMA_API is set to "true", call the real Llama API.
   if (process.env.USE_REAL_LLAMA_API === "true") {
     try {
-      const llamaResponse = await axios.post(
-        process.env.LLAMA_API_URL!, // e.g., "https://your-llama-api.com/endpoint"
-        {
-          prompt,
-          contextPrompt,
-          model,
-        },
-        {
-          headers: {
-            "Authorization": `Bearer ${process.env.LLAMA_API_KEY}`, // Ensure you have this key in your env
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const dockerizedApiUrl =
+        process.env.DOCKERIZED_API_URL || "http://localhost:11434/api/generate";
+      console.log("[API] Using dockerized API URL:", dockerizedApiUrl);
 
-      return res.status(200).json({ response: llamaResponse.data.response });
+      // Prepare the payload as required.
+      const payload = {
+        model: model || "qwen:0.5b",
+        prompt: prompt,
+      };
+      console.log("[API] Payload to forward:", payload);
+
+      // Make the POST request to the Ollama endpoint.
+      const axiosResponse = await axios.post(dockerizedApiUrl, payload, {
+        headers: { "Content-Type": "application/json" },
+        responseType: "text",
+      });
+      console.log("[API] Axios response data:", axiosResponse.data);
+
+      // Process the newline-delimited JSON response.
+      const fullText: string = axiosResponse.data;
+      const lines: string[] = fullText
+        .split("\n")
+        .filter((line: string) => line.trim().length > 0);
+      console.log("[API] Parsed lines:", lines);
+
+      let combinedResponse = "";
+      for (const line of lines) {
+        console.log("[API] Processing line:", line);
+        try {
+          const jsonLine = JSON.parse(line);
+          combinedResponse += jsonLine.response;
+        } catch (err) {
+          console.log("[API] Error parsing JSON for line:", line, err);
+        }
+      }
+      console.log("[API] Combined response:", combinedResponse);
+
+      return res.status(200).json({ response: combinedResponse });
     } catch (error) {
-      console.error("Error calling Llama API:", error);
-      return res.status(500).json({ message: "Error communicating with Llama API" });
+      console.error("[API] Error in real API forwarding:", error);
+      return res
+        .status(500)
+        .json({ message: "Error communicating with the model API" });
     }
   }
 
-  // Otherwise, use the fake response for now.
+  // If not using the real API, return a fake response.
   try {
-    // Simulate processing delay (e.g., waiting for a model to process)
+    console.log("[API] Using fake response");
     await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Return fake response data (this is where your local LLM logic would eventually go)
     const fakeOutput = `Fake response for prompt: "${prompt}"`;
-
+    console.log("[API] Fake output:", fakeOutput);
     return res.status(200).json({ response: fakeOutput });
   } catch (error) {
-    console.error("Error processing fake LLM response:", error);
-    return res.status(500).json({ message: "Error communicating with local LLM" });
+    console.error("[API] Error processing fake response:", error);
+    return res
+      .status(500)
+      .json({ message: "Error communicating with local LLM" });
   }
 }

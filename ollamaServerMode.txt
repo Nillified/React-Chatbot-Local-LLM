@@ -1,0 +1,41 @@
+Default: Just run ollama run llama2:7b in one terminal, which starts a local server on the default port (usually http://127.0.0.1:11411).
+
+
+or run ollama serve --model llama2:7b --port 11411
+> ollama serve --model llama2:7b --port 11411
+
+
+
+
+https://github.com/varunvasudeva1/llm-server-docs?tab=readme-ov-file#docker
+
+
+Build the image:
+docker build -t ollama-qwen-api
+
+Run the container, mapping port 8000 (or whichever port you prefer):
+docker run -p 8000:8000 ollama-qwen-api
+
+
+docker run -p 8000:8000 -v /home/williamlin/.ollama/models/qwen:/root/.ollama/models/qwen ollama-qwen-api
+
+
+
+--or run official ollama image
+docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+docker exec -it ollama ollama run qwen:0.5b
+
+http://localhost:11434/api/generate
+
+POST /api/generate
+POST /api/chat
+POST /api/create
+GET /api/tags
+POST /api/show
+POST /api/copy
+DELETE /api/delete
+POST /api/pull
+POST /api/push
+POST /api/embed
+POST /api/embeddings
+GET /api/ps
