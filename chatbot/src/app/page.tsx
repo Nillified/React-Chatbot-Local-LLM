@@ -11,6 +11,7 @@ type ChatThread = {
   id: string;
   name: string;
   messages: Message[];
+  context?: number[]; // Adjust type as needed.
 };
 
 type ChatSettings = {
@@ -34,11 +35,13 @@ export default function ChatPage() {
       name: "New Chat",
       messages: [],
     };
+    console.log("[NewChat] Creating new chat:", newChat);
     setActiveChat(newChat);
     setChatHistory((prev) => [newChat, ...prev]);
   };
 
   const updateChat = (updatedChat: ChatThread) => {
+    console.log("[UpdateChat] Updating chat:", updatedChat);
     setChatHistory((prev) =>
       prev.map((chat) => (chat.id === updatedChat.id ? updatedChat : chat))
     );
@@ -175,51 +178,79 @@ function ChatInterface({
 
   const sendPrompt = async () => {
     if (!prompt.trim()) return;
-
+  
     console.log("[Client] Sending prompt:", prompt);
-
+  
     let updatedChat = { ...activeChat };
     if (updatedChat.messages.length === 0) {
       updatedChat = { ...updatedChat, name: prompt.trim().slice(0, 25) };
     }
-
+  
+    // Append the user message
     const userMessage: Message = { role: "user", text: prompt };
     updatedChat = {
       ...updatedChat,
       messages: [...updatedChat.messages, userMessage],
     };
     updateChat(updatedChat);
-
+  
     setLoading(true);
+    // Capture the current prompt before clearing
     const currentPrompt = prompt;
     setPrompt("");
-
+  
     try {
       const dockerizedEndpoint =
         process.env.NEXT_PUBLIC_DOCKERIZED_API_URL ||
         "http://localhost:11434/api/generate";
-
-      console.log("[Client] Calling endpoint:", dockerizedEndpoint);
-      console.log("[Client] Payload:", {
+  
+      // Log the current active chat context (if any)
+      console.log("[Client] Active chat context before sending:", activeChat?.context);
+  
+      // Option 1: Use the returned context (if provided by the API)
+      const payload: any = {
         model: settings.selectedModel,
         prompt: currentPrompt,
-        stream: false, // Request full response in one go
-      });
-
+        stream: false,
+      };
+      if (activeChat?.context) {
+        payload.context = activeChat.context;
+        console.log("[Client] Including context in payload:", activeChat.context);
+      } else {
+        console.log("[Client] No existing context to include.");
+      }
+  
+      // Option 2 (optional): Concatenate conversation history into the prompt.
+      // Uncomment the following if you prefer to include full history:
+      /*
+      const historyText = activeChat?.messages
+        .map((msg) => `${msg.role}: ${msg.text}`)
+        .join("\n");
+      payload.prompt = `${historyText}\nuser: ${currentPrompt}`;
+      console.log("[Client] Full prompt with history:", payload.prompt);
+      */
+  
+      console.log("[Client] Calling endpoint:", dockerizedEndpoint);
+      console.log("[Client] Payload:", payload);
+  
       const res = await fetch(dockerizedEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: settings.selectedModel,
-          prompt: currentPrompt,
-          stream: false,
-        }),
+        body: JSON.stringify(payload),
       });
       console.log("[Client] Fetch response status:", res.status);
-
+  
       const data = await res.json();
       console.log("[Client] Data received:", data);
-
+  
+      // Log the new context received
+      if (data.context) {
+        console.log("[Client] New context received from API:", data.context);
+        updatedChat.context = data.context;
+      } else {
+        console.log("[Client] No new context received from API.");
+      }
+  
       const assistantMessage: Message = {
         role: "assistant",
         text: data.response,
@@ -244,6 +275,7 @@ function ChatInterface({
       setLoading(false);
     }
   };
+  
 
   return (
     <div className="flex flex-col h-full">
@@ -251,9 +283,7 @@ function ChatInterface({
         {activeChat.messages.map((msg, index) => (
           <div
             key={index}
-            className={`flex mb-3 ${
-              msg.role === "user" ? "justify-end" : "justify-start"
-            }`}
+            className={`flex mb-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
               className={`px-4 py-2 rounded-lg max-w-[80%] whitespace-pre-wrap ${
