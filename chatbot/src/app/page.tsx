@@ -11,7 +11,7 @@ type ChatThread = {
   id: string;
   name: string;
   messages: Message[];
-  context?: number[]; // Adjust type as needed.
+  context?: number[];
 };
 
 type ChatSettings = {
@@ -181,6 +181,7 @@ function ChatInterface({
   
     console.log("[Client] Sending prompt:", prompt);
   
+    // Create a copy of the current activeChat
     let updatedChat = { ...activeChat };
     if (updatedChat.messages.length === 0) {
       updatedChat = { ...updatedChat, name: prompt.trim().slice(0, 25) };
@@ -195,7 +196,6 @@ function ChatInterface({
     updateChat(updatedChat);
   
     setLoading(true);
-    // Capture the current prompt before clearing
     const currentPrompt = prompt;
     setPrompt("");
   
@@ -204,31 +204,19 @@ function ChatInterface({
         process.env.NEXT_PUBLIC_DOCKERIZED_API_URL ||
         "http://localhost:11434/api/generate";
   
-      // Log the current active chat context (if any)
-      console.log("[Client] Active chat context before sending:", activeChat?.context);
-  
-      // Option 1: Use the returned context (if provided by the API)
+      // Build the payload using updatedChat.context
       const payload: any = {
         model: settings.selectedModel,
         prompt: currentPrompt,
         stream: false,
       };
-      if (activeChat?.context) {
-        payload.context = activeChat.context;
-        console.log("[Client] Including context in payload:", activeChat.context);
+  
+      if (updatedChat.context) {
+        payload.context = updatedChat.context;
+        console.log("[Client] Including context in payload:", updatedChat.context);
       } else {
         console.log("[Client] No existing context to include.");
       }
-  
-      // Option 2 (optional): Concatenate conversation history into the prompt.
-      // Uncomment the following if you prefer to include full history:
-      /*
-      const historyText = activeChat?.messages
-        .map((msg) => `${msg.role}: ${msg.text}`)
-        .join("\n");
-      payload.prompt = `${historyText}\nuser: ${currentPrompt}`;
-      console.log("[Client] Full prompt with history:", payload.prompt);
-      */
   
       console.log("[Client] Calling endpoint:", dockerizedEndpoint);
       console.log("[Client] Payload:", payload);
@@ -243,7 +231,7 @@ function ChatInterface({
       const data = await res.json();
       console.log("[Client] Data received:", data);
   
-      // Log the new context received
+      // Update context with the new value from the API (if provided)
       if (data.context) {
         console.log("[Client] New context received from API:", data.context);
         updatedChat.context = data.context;
@@ -251,6 +239,7 @@ function ChatInterface({
         console.log("[Client] No new context received from API.");
       }
   
+      // Append the assistant's reply
       const assistantMessage: Message = {
         role: "assistant",
         text: data.response,
