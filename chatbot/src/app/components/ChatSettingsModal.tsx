@@ -25,7 +25,7 @@ const ChatSettingsModal = ({
     // Refresh local state when external settings change
     setLocalConfigs(settings.llmConfigs);
     setLocalSelectedModel(
-      settings.selectedModel || (settings.llmConfigs[0] && settings.llmConfigs[0].name) || ""
+      settings.selectedModel || (settings.llmConfigs[0] && settings.llmConfigs[0].name) || " "
     );
   }, [settings]);
 
