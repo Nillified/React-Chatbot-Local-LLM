@@ -40,9 +40,8 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
     setPrompt("");
 
     try {
-      const dockerizedEndpoint =
-        process.env.NEXT_PUBLIC_DOCKERIZED_API_URL ||
-        "http://localhost:11434/api/generate";
+      // Use the API URL from the settings provided by the user
+      const dockerizedEndpoint = settings.apiUrl;
 
       // Build the payload using updatedChat.context
       const payload: any = {
@@ -111,15 +110,11 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
         {activeChat.messages.map((msg, index) => (
           <div
             key={index}
-            className={`flex mb-3 ${
-              msg.role === "user" ? "justify-end" : "justify-start"
-            }`}
+            className={`flex mb-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
               className={`px-4 py-2 rounded-lg max-w-[80%] whitespace-pre-wrap ${
-                msg.role === "user"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-200 text-gray-900"
+                msg.role === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-900"
               }`}
             >
               {msg.text}

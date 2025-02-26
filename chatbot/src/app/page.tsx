@@ -20,16 +20,23 @@ export type ChatThread = {
 
 export type ChatSettings = {
   selectedModel: string;
+  apiUrl: string;
 };
+
+
+
 
 export default function ChatPage() {
   const [chatHistory, setChatHistory] = useState<ChatThread[]>([]);
   const [activeChat, setActiveChat] = useState<ChatThread | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   const [settings, setSettings] = useState<ChatSettings>({
     selectedModel: "qwen:0.5b",
+    apiUrl: "http://localhost:11434/api/generate",
   });
+  
 
   // Create a new chat thread and set it as active.
   const handleNewChat = () => {
