@@ -21,13 +21,11 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
 
     console.log("[Client] Sending prompt:", prompt);
 
-    // Create a copy of the current activeChat
     let updatedChat = { ...activeChat };
     if (updatedChat.messages.length === 0) {
       updatedChat = { ...updatedChat, name: prompt.trim().slice(0, 25) };
     }
 
-    // Append the user message
     const userMessage: Message = { role: "user", text: prompt };
     updatedChat = {
       ...updatedChat,
@@ -40,10 +38,15 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
     setPrompt("");
 
     try {
-      // Use the API URL from the settings provided by the user
-      const dockerizedEndpoint = settings.apiUrl;
+      // Look up the active model configuration
+      const activeConfig = settings.llmConfigs.find(
+        (config) => config.name === settings.selectedModel
+      );
+      if (!activeConfig) {
+        throw new Error("Active model configuration not found.");
+      }
+      const dockerizedEndpoint = activeConfig.apiUrl;
 
-      // Build the payload using updatedChat.context
       const payload: any = {
         model: settings.selectedModel,
         prompt: currentPrompt,
@@ -70,7 +73,6 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
       const data = await res.json();
       console.log("[Client] Data received:", data);
 
-      // Update context with the new value from the API (if provided)
       if (data.context) {
         console.log("[Client] New context received from API:", data.context);
         updatedChat.context = data.context;
@@ -78,7 +80,6 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
         console.log("[Client] No new context received from API.");
       }
 
-      // Append the assistant's reply
       const assistantMessage: Message = {
         role: "assistant",
         text: data.response,

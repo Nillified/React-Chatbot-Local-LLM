@@ -18,9 +18,14 @@ export type ChatThread = {
   context?: number[];
 };
 
-export type ChatSettings = {
-  selectedModel: string;
+export type LLMConfig = {
+  name: string;
   apiUrl: string;
+};
+
+export type ChatSettings = {
+  llmConfigs: LLMConfig[];
+  selectedModel: string; // The name of the active model
 };
 
 
@@ -33,10 +38,11 @@ export default function ChatPage() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const [settings, setSettings] = useState<ChatSettings>({
+    llmConfigs: [
+      { name: "qwen:0.5b", apiUrl: "http://localhost:11434/api/generate" }
+    ],
     selectedModel: "qwen:0.5b",
-    apiUrl: "http://localhost:11434/api/generate",
   });
-  
 
   // Create a new chat thread and set it as active.
   const handleNewChat = () => {
