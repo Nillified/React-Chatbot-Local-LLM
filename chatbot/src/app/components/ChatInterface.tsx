@@ -26,11 +26,21 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
       updatedChat = { ...updatedChat, name: prompt.trim().slice(0, 25) };
     }
 
+    // Append the user message.
     const userMessage: Message = { role: "user", text: prompt };
     updatedChat = {
       ...updatedChat,
       messages: [...updatedChat.messages, userMessage],
     };
+
+    // Add the selected context prompt only once if not already present.
+    if (
+      (!updatedChat.context || updatedChat.context.length === 0) &&
+      settings.selectedContextPrompt.trim() !== ""
+    ) {
+      updatedChat.context = [settings.selectedContextPrompt];
+    }
+
     updateChat(updatedChat);
 
     setLoading(true);
@@ -38,7 +48,7 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
     setPrompt("");
 
     try {
-      // Look up the active model configuration
+      // Look up the active model configuration.
       const activeConfig = settings.llmConfigs.find(
         (config) => config.name === settings.selectedModel
       );
@@ -47,15 +57,17 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
       }
       const dockerizedEndpoint = activeConfig.apiUrl;
 
+      // Build the payload.
       const payload: any = {
         model: settings.selectedModel,
         prompt: currentPrompt,
         stream: false,
       };
 
-      if (updatedChat.context) {
-        payload.context = updatedChat.context;
-        console.log("[Client] Including context in payload:", updatedChat.context);
+      // If context exists, send it as a string (using only the first element).
+      if (updatedChat.context && updatedChat.context.length > 0) {
+        payload.context = updatedChat.context[0];
+        console.log("[Client] Including context in payload:", payload.context);
       } else {
         console.log("[Client] No existing context to include.");
       }
@@ -73,9 +85,13 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
       const data = await res.json();
       console.log("[Client] Data received:", data);
 
+      // If new context is provided by the API, update it.
       if (data.context) {
         console.log("[Client] New context received from API:", data.context);
-        updatedChat.context = data.context;
+        // If the API returns a string, store it as an array.
+        updatedChat.context = Array.isArray(data.context)
+          ? data.context
+          : [data.context];
       } else {
         console.log("[Client] No new context received from API.");
       }
@@ -115,7 +131,9 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
           >
             <div
               className={`px-4 py-2 rounded-lg max-w-[80%] whitespace-pre-wrap ${
-                msg.role === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-900"
+                msg.role === "user"
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-200 text-gray-900"
               }`}
             >
               {msg.text}

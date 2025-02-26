@@ -15,7 +15,7 @@ export type ChatThread = {
   id: string;
   name: string;
   messages: Message[];
-  context?: number[];
+  context?: string[]; // changed from number[] to string[]
 };
 
 export type LLMConfig = {
@@ -25,7 +25,9 @@ export type LLMConfig = {
 
 export type ChatSettings = {
   llmConfigs: LLMConfig[];
-  selectedModel: string; // The name of the active model
+  selectedModel: string;
+  contextPrompts: string[];         // add this field for available prompts
+  selectedContextPrompt: string;    // add this field for the active prompt
 };
 
 
@@ -42,7 +44,10 @@ export default function ChatPage() {
       { name: "qwen:0.5b", apiUrl: "http://localhost:11434/api/generate" }
     ],
     selectedModel: "qwen:0.5b",
+    contextPrompts: [""],           // default empty prompt
+    selectedContextPrompt: ""
   });
+  
 
   // Create a new chat thread and set it as active.
   const handleNewChat = () => {
