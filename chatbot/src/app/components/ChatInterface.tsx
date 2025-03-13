@@ -39,13 +39,6 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
       messages: [...updatedChat.messages, userMessage],
     };
 
-    // (Optional) If you want to also store the context prompt in the chat context,
-    // you can update it here. In this example we let the API update context.
-    // For example, you might uncomment the next lines if desired:
-    // if (settings.selectedContextPrompt.trim() !== "") {
-    //   updatedChat.context = [settings.selectedContextPrompt];
-    // }
-
     updateChat(updatedChat);
 
     setLoading(true);
