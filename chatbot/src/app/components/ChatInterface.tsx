@@ -26,11 +26,19 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
       updatedChat = { ...updatedChat, name: prompt.trim().slice(0, 25) };
     }
 
+    // Prepare the full prompt by always prepending the context prompt if available.
+    const contextTag = settings.selectedContextPrompt.trim()
+      ? `<contextprompt: "${settings.selectedContextPrompt}">`
+      : "";
+    const fullPrompt = contextTag ? `${contextTag} ${prompt}` : prompt;
+
+    // Append the user message (display the original prompt)
     const userMessage: Message = { role: "user", text: prompt };
     updatedChat = {
       ...updatedChat,
       messages: [...updatedChat.messages, userMessage],
     };
+
     updateChat(updatedChat);
 
     setLoading(true);
@@ -38,7 +46,7 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
     setPrompt("");
 
     try {
-      // Look up the active model configuration
+      // Look up the active model configuration.
       const activeConfig = settings.llmConfigs.find(
         (config) => config.name === settings.selectedModel
       );
@@ -47,15 +55,16 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
       }
       const dockerizedEndpoint = activeConfig.apiUrl;
 
+      // Build the payload using the full prompt.
       const payload: any = {
         model: settings.selectedModel,
-        prompt: currentPrompt,
+        prompt: fullPrompt,
         stream: false,
       };
 
-      if (updatedChat.context) {
+      if (updatedChat.context && updatedChat.context.length > 0) {
         payload.context = updatedChat.context;
-        console.log("[Client] Including context in payload:", updatedChat.context);
+        console.log("[Client] Including context in payload:", payload.context);
       } else {
         console.log("[Client] No existing context to include.");
       }
@@ -75,7 +84,10 @@ const ChatInterface = ({ activeChat, updateChat, settings }: ChatInterfaceProps)
 
       if (data.context) {
         console.log("[Client] New context received from API:", data.context);
-        updatedChat.context = data.context;
+        // Update context with new data (storing it as an array).
+        updatedChat.context = Array.isArray(data.context)
+          ? data.context
+          : [data.context];
       } else {
         console.log("[Client] No new context received from API.");
       }
